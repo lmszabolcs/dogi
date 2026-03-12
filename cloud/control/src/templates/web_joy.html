@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dogi control</title>
+    <script src="{{ url_for('static', filename='js/joy.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+    <style>
+        .container {
+            display: flex;
+        }
+        .video-container {
+            width: 896px;
+            height: 672px;
+            border: 2px solid black;
+            margin-right: 20px; /* Space between video and table */
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+        .video-container img {
+            width: 100%;
+            height: 100%;
+        }
+        .circle-button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            margin: 10px;
+            background-color: red;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s ease;
+        }
+        .circle-button:hover {
+            background-color: darkred;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="video-container">
+        <img src="http://{{ host }}:5051/mjpeg" alt="MJPEG Video" />
+    </div>
+
+    <div>
+        <div id="joy1Div" style="width:200px;height:200px;margin:auto;"></div>
+        <div id="joy2Div" style="width:200px;height:200px;margin:auto;"></div>
+    </div>
+    <div>
+        <button id="button_on" class="circle-button" style="background-color: darkred;">On</button>
+        <button id="button_off" class="circle-button" style="background-color: darkred;">Off</button>
+        <button id="button_reset" class="circle-button" style="background-color: darkred;">Reset</button>
+        <button id="button_pee" class="circle-button" style="background-color: red;">Pee</button>
+        <button id="button_wave" class="circle-button" style="background-color: red;">Wave</button>
+        <button id="button_look" class="circle-button" style="background-color: red;">Look</button>
+        <button id="button_sit" class="circle-button" style="background-color: red;">Sit</button>
+        <button id="button_joke" class="circle-button" style="background-color: darkorange;">Joke</button>
+        <button id="button_what" class="circle-button" style="background-color: darkorange;">What</button>
+    </div>
+</div>
+
+<script>
+    var socket = io();
+    socket.on('connect', function() {
+        socket.emit('my event', {data: 'I\'m connected!'});
+    });
+
+    var Joy1 = new JoyStick('joy1Div', {}, function(stickData) {
+        // Send the stickData as a JSON string
+        socket.emit('joy1', stickData.cardinalDirection);
+    });
+    var Joy2 = new JoyStick('joy2Div', {}, function(stickData) {
+        // Send the stickData as a JSON string
+        socket.emit('joy2', stickData.cardinalDirection);
+    });
+
+    document.querySelector('#button_reset').addEventListener('click', function() {
+        socket.emit('action', 'reset');
+    });
+    document.querySelector('#button_pee').addEventListener('click', function() {
+        socket.emit('action', 'pee');
+    });
+    document.querySelector('#button_wave').addEventListener('click', function() {
+        socket.emit('action', 'wave');
+    });
+    document.querySelector('#button_look').addEventListener('click', function() {
+        socket.emit('action', 'look');
+    });
+    document.querySelector('#button_sit').addEventListener('click', function() {
+        socket.emit('action', 'sit');
+    });
+    document.querySelector('#button_joke').addEventListener('click', function() {
+        socket.emit('action', 'joke');
+    });
+    document.querySelector('#button_on').addEventListener('click', function() {
+        socket.emit('action', 'on');
+    });
+    document.querySelector('#button_off').addEventListener('click', function() {
+        socket.emit('action', 'off');
+    });
+    document.querySelector('#button_what').addEventListener('click', function() {
+        // Fetch the current JPEG frame from the video source
+        fetch('http://{{ host }}:5051/jpeg')
+            .then(response => response.blob())
+            .then(blob => {
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                const dataURL = reader.result;
+                socket.emit('image', dataURL);
+                setTimeout(function() {
+                    socket.emit('action', 'what');
+                }, 500);
+            };
+            reader.readAsDataURL(blob);
+            });
+    });
+
+</script>
+
+</body>
+</html>
