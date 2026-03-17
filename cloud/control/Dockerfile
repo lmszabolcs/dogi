@@ -49,6 +49,9 @@ RUN \
 # Packages & model for MediaPipe Hand tracking
 RUN cd /root && wget -q https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task
 
+# YOLO weights for offline runtime inside container
+RUN cd /root && wget -q https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8m-seg.pt
+
 # Copy the supervisor configuration file
 COPY src/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

@@ -33,7 +33,6 @@ services:
       - ./Ultralytics:/root/.config/Ultralytics:rw
       - ./cache/huggingface:/root/.cache/huggingface:rw
       - ./cache/debug:/root/debug:ro
-      - ./yolov8m-seg.pt:/root/yolov8m-seg.pt
     # deploy:
     #   resources:
     #     reservations:
