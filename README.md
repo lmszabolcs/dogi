@@ -1,20 +1,21 @@
 # dogi
 DOGZILLA mods
 
-## PoC quick start (ball detection dashboard)
+## Demo quick start (ball detection dashboard)
 
-Ez a PoC stream kepet fogad, labdat detektal, majd bekeretezve mutatja a dashboardon.
+Ez a demo stream kepet fogad, labdat detektal, majd bekeretezve mutatja a dashboardon.
 
 1. Inditas:
 
 ```bash
 cd cloud/control
-docker compose up -d --build
+./docker-run.sh
 ```
 
 2. Dashboard:
 
-- http://localhost:5055
+- Keresd: http://localhost:5053
+- Kovesd: http://localhost:5055
 
 3. Kamera nelkuli teszt stream (RealSense helyett):
 
@@ -24,4 +25,12 @@ ffmpeg -re -stream_loop -1 -i /path/to/ball_video.mp4 -an -vf scale=640:480 -c:v
 
 4. Eredmeny:
 
-- A labda a kovesd nezetben bekeretezve jelenik meg.
+- A keresd es a kovesd nezetben is megjelenik a kep.
+- A labda bekeretezve latszik mindket nezetben.
+
+5. Leallitas:
+
+```bash
+cd cloud/control
+./docker-stop.sh
+```
