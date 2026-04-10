@@ -5,11 +5,18 @@ DOGZILLA mods
 
 Ez a demo stream kepet fogad, labdat detektal, majd bekeretezve mutatja a dashboardon.
 
-1. Inditas:
+1. Inditas (NVIDIA / CUDA):
 
 ```bash
 cd cloud/control
 ./docker-run.sh
+```
+
+Inditas (AMD / ROCm):
+
+```bash
+cd cloud/control
+./docker-run-amd.sh
 ```
 
 2. Dashboard:
