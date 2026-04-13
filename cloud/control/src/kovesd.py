@@ -17,6 +17,8 @@ config.init()
 MAXPITCH = 20
 MAXYAW = 16
 TURNBASE = 7
+X_DEADZONE = 0.05
+Y_DEADZONE = 0.05
 
 # Subscribe to video
 zmqcontext = zmq.Context()
@@ -98,26 +100,26 @@ while True:
         if ball:
             (x, y) = ball
             if turn > 0:
-                if x < 0.5:
+                if x < 0.5 + X_DEADZONE:
                     turn = TURNBASE    # Continue turn left
                 else:
                     turn = 0
                     skip = 3    # Stop turning and pause
             elif turn < 0:
-                if x > 0.5:
+                if x > 0.5 - X_DEADZONE:
                     turn = -TURNBASE   # Continue turn right
                 else:
                     turn = 0
                     skip = 3    # Stop turning and pause
             else:   # No turn in progress
-                if x < 0.5:
+                if x < 0.5 - X_DEADZONE:
                     if att_yaw == MAXYAW:
                         att_yaw = 0
                         turn = TURNBASE    # Start turning left
                         skip = 10
                     else:
                         att_yaw += 1    # Lean left
-                elif x > 0.5:
+                elif x > 0.5 + X_DEADZONE:
                     if att_yaw == -MAXYAW:
                         att_yaw = 0
                         turn = -TURNBASE   # Start turning right
@@ -125,9 +127,9 @@ while True:
                     else:
                         att_yaw -= 1    # Lean right
 
-                if y < 0.5 and att_pitch > -MAXPITCH:
+                if y < 0.5 - Y_DEADZONE and att_pitch > -MAXPITCH:
                     att_pitch -= 1
-                if y > 0.5 and att_pitch < MAXPITCH:
+                if y > 0.5 + Y_DEADZONE and att_pitch < MAXPITCH:
                     att_pitch += 1
 
         if turn != o_turn:
