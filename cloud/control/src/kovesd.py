@@ -89,67 +89,68 @@ while True:
         frame_bytes = subscriber.recv()
         ball = process_frame(frame_bytes)
 
-        # PoC: kutyavezérlés most nem kell; későbbre meghagyva.
-        # if skip > 0:
-        #     skip -= 1
-        #     continue
-        #
-        # if ball:
-        #     (x, y) = ball
-        #     if turn > 0:
-        #         if x < 0.5:
-        #             turn = TURNBASE    # Continue turn left
-        #         else:
-        #             turn = 0
-        #             skip - 3    # Stop turning and pause
-        #     elif turn < 0:
-        #         if x > 0.5:
-        #             turn = -TURNBASE   # Continue turn right
-        #         else:
-        #             turn = 0
-        #             skip = 3    # Stop turning and pause
-        #     else:   # No turn in progress
-        #         if x < 0.5:
-        #             if att_yaw == MAXYAW:
-        #                 att_yaw = 0
-        #                 turn = TURNBASE    # Start turning left
-        #                 skip = 10
-        #             else:
-        #                 att_yaw += 1    # Lean left
-        #         elif x > 0.5:
-        #             if att_yaw == -MAXYAW:
-        #                 att_yaw = 0
-        #                 turn = -TURNBASE   # Start turning right
-        #                 skip = 10
-        #             else:
-        #                 att_yaw -= 1    # Lean right
-        #
-        #         if y < 0.5 and att_pitch > -MAXPITCH:
-        #             att_pitch -= 1
-        #         if y > 0.5 and att_pitch < MAXPITCH:
-        #             att_pitch += 1
-        #
-        # if turn != o_turn:
-        #     o_turn = turn
-        #     print("TURN", turn)
-        #     if turn > 0:
-        #         utils.dogy_control('turn', (10, ))
-        #     elif turn < 0:
-        #         utils.dogy_control('turn', (-10, ))
-        #     else:
-        #         utils.dogy_control('stop')
-        #         att_yaw = 0 # Reset the attitude yaw
-        #
-        # elif att_yaw != o_att_yaw or att_pitch != o_att_pitch:
-        #     o_att_yaw = att_yaw
-        #     o_att_pitch = att_pitch
-        #     # print("ATTITUDE", att_yaw, att_pitch)
-        #     utils.dogy_control('attitude', (["y", "p", "r"], [att_yaw, att_pitch, 0]))
-        #
-        # if turn > 0:
-        #     turn -= 1
-        # elif turn < 0:
-        #     turn += 1
+        if skip > 0:
+            skip -= 1
+            if cv2.waitKey(1) == ord('q'):
+                break
+            continue
+
+        if ball:
+            (x, y) = ball
+            if turn > 0:
+                if x < 0.5:
+                    turn = TURNBASE    # Continue turn left
+                else:
+                    turn = 0
+                    skip = 3    # Stop turning and pause
+            elif turn < 0:
+                if x > 0.5:
+                    turn = -TURNBASE   # Continue turn right
+                else:
+                    turn = 0
+                    skip = 3    # Stop turning and pause
+            else:   # No turn in progress
+                if x < 0.5:
+                    if att_yaw == MAXYAW:
+                        att_yaw = 0
+                        turn = TURNBASE    # Start turning left
+                        skip = 10
+                    else:
+                        att_yaw += 1    # Lean left
+                elif x > 0.5:
+                    if att_yaw == -MAXYAW:
+                        att_yaw = 0
+                        turn = -TURNBASE   # Start turning right
+                        skip = 10
+                    else:
+                        att_yaw -= 1    # Lean right
+
+                if y < 0.5 and att_pitch > -MAXPITCH:
+                    att_pitch -= 1
+                if y > 0.5 and att_pitch < MAXPITCH:
+                    att_pitch += 1
+
+        if turn != o_turn:
+            o_turn = turn
+            print("TURN", turn)
+            if turn > 0:
+                utils.dogy_control('turn', (10, ))
+            elif turn < 0:
+                utils.dogy_control('turn', (-10, ))
+            else:
+                utils.dogy_control('stop')
+                att_yaw = 0 # Reset the attitude yaw
+
+        elif att_yaw != o_att_yaw or att_pitch != o_att_pitch:
+            o_att_yaw = att_yaw
+            o_att_pitch = att_pitch
+            # print("ATTITUDE", att_yaw, att_pitch)
+            utils.dogy_control('attitude', (["y", "p", "r"], [att_yaw, att_pitch, 0]))
+
+        if turn > 0:
+            turn -= 1
+        elif turn < 0:
+            turn += 1
 
 
     except zmq.error.Again:
