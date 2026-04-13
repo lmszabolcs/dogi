@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ ${1:-} =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Valid IP format for parameter running with IP: $1"
+else
+    echo "Invalid IP format for parameter: '${1:-}' (Please provide X.X.X.X address)"
+    exit 1
+fi
+
+ROBOT_IP="$1"
+
 docker build -f Dockerfile.amd -t dogi-control .
 docker rm -f dogi >/dev/null 2>&1 || true
 
@@ -9,12 +18,14 @@ docker run -d \
   --device /dev/kfd --device /dev/dri \
   --group-add video --group-add render \
   --ipc=host \
+  -p 5002:5002/udp \
   -p 6080:6080 \
   -p 5050-5059:5050-5059 \
   -p 5100:5100/udp \
   -e HSA_OVERRIDE_GFX_VERSION=12.0.1 \
   -e PYTORCH_ROCM_ARCH=gfx1201 \
   -e HIP_VISIBLE_DEVICES=0 \
+  -e ROBOT_IP="${ROBOT_IP}" \
   -e OLLAMA_IP=127.0.0.1 \
   -e DISPLAY=:0 \
   -v ./Ultralytics:/root/.config/Ultralytics:rw \
