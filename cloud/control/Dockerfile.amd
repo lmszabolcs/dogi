@@ -15,7 +15,8 @@ RUN apt update && \
     busybox socat tmux build-essential git vim tcpdump software-properties-common curl \
     python3 python3-pip python3-serial python3-opencv python3-gi pipx python3-dev python3-gst-1.0 \
     python3-zmq libzmq3-dev \
-    && busybox --install
+    && busybox --install && \
+    python3 -m pip install --break-system-packages pyserial
 
 SHELL ["/bin/bash", "-c"]
 RUN \
