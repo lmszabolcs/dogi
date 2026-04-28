@@ -20,9 +20,10 @@ docker run -d \
   -p 6080:6080 \
   -p 5050-5059:5050-5059 \
   -p 5100:5100/udp \
-  -e DISPLAY=:0 \
+  -e OLLAMA_IP=127.0.0.1 \
   -e ROBOT_IP="${ROBOT_IP}" \
   -v ./Ultralytics:/root/.config/Ultralytics:rw \
   -v ./cache/huggingface:/root/.cache/huggingface:rw \
   -v ./cache/debug:/root/debug:ro \
+  -d \
   dogi-control

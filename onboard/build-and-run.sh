@@ -22,4 +22,5 @@ docker run \
     --network host \
     -e VIDEO_DST=$1 \
     -e VIDEO_PORT=5100 \
+    -d \
     onboard

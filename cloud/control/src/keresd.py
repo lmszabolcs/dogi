@@ -21,10 +21,6 @@ MAXYAW = 16
 
 DEBUG_mode = os.getenv('DEBUG', '0') == '1'
 
-model = YOLO('yolov8m-seg.pt')
-
-config.init()
-
 # Create a UDP sockets to web page server
 sock_web = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock_web.connect(('localhost', PORT))
@@ -50,6 +46,42 @@ publisher.bind("ipc:///tmp/video_frames_keresd.ipc")
 #utils.play_wav(wav)
 #time.sleep(d)
 
+front_pic = None
+ball = None
+ball_lock = threading.Lock()
+
+# Function to process the frame
+def take_and_process_frame(model):
+    global ball, front_pic
+
+    width = 640
+    height = 480
+
+    frame_bytes = subscriber.recv()
+
+    if frame_bytes is None:
+        return None
+    
+    img_array = np.frombuffer(frame_bytes, dtype=np.uint8)
+    img_array = img_array.reshape((height, width, 3))
+
+    results = model.track(img_array, imgsz=[height, width], conf=0.25, classes=[32], verbose=False, persist=True)
+    annotated_frame = results[0].plot()
+    publisher.send(annotated_frame.tobytes())
+
+    front_pic = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
+    #cv2.imshow("Front", front_pic)
+    cv2.waitKey(1)
+
+    with ball_lock:
+        if len(results[0].boxes.xywhn) > 0:
+            (x, y, w, h) = results[0].boxes.xywhn[0].cpu().numpy()
+            x = round(x,2)
+            y = round(y,2)
+            ball = (x, y)
+        else:
+            ball = None
+
 def move_forward():
     utils.dogy_look(0, 0, 0) # Look straight
     time.sleep(1)
@@ -71,56 +103,28 @@ def turn_right():
     time.sleep(3)
     utils.dogy_control('stop')
 
-def look_left_right():
-    threading.current_thread().stopped = False
-    while not threading.current_thread().stopped:
-        utils.dogy_look(0, MAXPITCH, -MAXYAW) # Look left
-        time.sleep(1.5)
-        if threading.current_thread().stopped:
+def look_left_right(model):
+    global ball
+
+    for yaw in [-MAXYAW, 0, MAXYAW]:
+        utils.dogy_look(0, 0, yaw) # Look
+        start = time.time()
+        while time.time() - start < 1.5:
+            take_and_process_frame(model)
+            if ball:
+                break
+        if ball:
             break
-        utils.dogy_look(0, MAXPITCH, MAXYAW) # Lookright
-        time.sleep(1.5)
-        if threading.current_thread().stopped:
-            break
-        utils.dogy_look(0, MAXPITCH, 0) # Look front
-        time.sleep(1.5)
 
-    utils.dogy_look(0, MAXPITCH, 0) # Look front
+    utils.dogy_look(0, 0, 0) # Look front
 
-# Function to process the frame
-def take_and_process_frame():
-    width = 640
-    height = 480
+def loop_body(model):
+    global ball, front_pic
 
-    frame_bytes = subscriber.recv()
+    front_pic = None
+    ball = None
 
-    if frame_bytes is None:
-        return None
-    
-    img_array = np.frombuffer(frame_bytes, dtype=np.uint8)
-    img_array = img_array.reshape((height, width, 3))
-
-    results = model.track(img_array, imgsz=[height, width], conf=0.25, classes=[32], verbose=False, persist=True)
-    annotated_frame = results[0].plot()
-
-    publisher.send(annotated_frame.tobytes())
-
-    annotated_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-
-    img_array = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-    return img_array
-
-while True:
-
-    # Temporarily disabled for local testing
-    #utils.dogy_reset()
-    #time.sleep(1)
-
-    #utils.dogy_look(0, MAXPITCH, 0) # Look front
-    #time.sleep(1.5)
-    
     try:
-        front_pic = None
         if DEBUG_mode:
             jpg_files = glob.glob("/root/debug/*.jpeg")
             if jpg_files:
@@ -130,155 +134,46 @@ while True:
                 if front_pic is not None:
                     # Publish the raw bytes of the picture
                     publisher.send(front_pic.tobytes())
+                
+                # Example coordinates for the ball
+                ball = (0.5, 0.5)
             else:
                 print("No jpeg files found in the folder.")
         else:
-            front_pic = take_and_process_frame()
-            # Save front_pic into the current folder in jpeg format
-            #filename = "front_pic_{}.jpeg".format(time.time())
-            #cv2.imwrite(filename, front_pic)
-            #print(f"Saved picture: {filename}")
+            take_and_process_frame(model)
 
-        # Display the picture
-        cv2.imshow("Front", front_pic)
-        cv2.waitKey(1)
+        if not ball:
+            thread = threading.Thread(target=look_left_right, args=(model,))
+            thread.start()
+            thread.join()
 
-        # Start the looking thread
-        # Temporarily disabled
-        #thread = threading.Thread(target=look_left_right)
-        #thread.start()
-
-        #is_success, img_buffer = cv2.imencode(".jpg", front_pic)
-
-        #start_time = time.time()
-        #obstacles = None
-        #ball_found = False
-
-        #prompt_text = {
-        #    'hu': 'Ez egy robotkutyára szerelt első kamera által készített élő nézet. '\
-        #        'A robotkutya egyenesen előre és kissé lefelé néz. '\
-        #        'Készíts egy rövid leírást, mi látható a képen! '\
-        #        'Koncentrálj a közeli tárgyakra, hagyd figyelmen kívül a távoli tárgyakat! '\
-        #        'Próbáld meg ezeket a tárgyakat a kép közepéhez viszonyítva leírni! ' \
-        #        'Ha labda lenne a képen, feltétlenül említsd meg!',
-        #    'en': 'This is a liveview capture taken by a front camera of a robot dog.' \
-        #        'The robot dog is looking straight ahead and a bit down.' \
-        #        'Make a short description, what is on the picture!' \
-        #        'Focus on the near objects, ignore far away objects!' \
-        #        'Try to describe these objects relative to the center of the picture!' \
-        #        'If there is a ball on the picture, be sure to mention it!'
-        #}
-        #text = utils.prompt(prompt_text, images=[img_buffer.tobytes()])
-        #print(f"Description: {text}")
-        #sock_web.send(pickle.dumps({'action': 'entext', 'text': text}))
-
-        #if config.needs_translation():
-        #    print("Ask translation" )
-        #    xtext = utils.translate(text, config.get_prompt_language())
-        #    print("Translation: ", xtext)
-        #    sock_web.send(pickle.dumps({'action': 'xtext', 'text': xtext}))
-        #else:
-        #    xtext = text
-
-        #print("Ask for TTS")
-        #wav, d = utils.tts_wav(xtext)
-        #utils.play_wav(wav)
-        #time.sleep(d)
-
-        #prompt_text = {
-        #    'hu': 'Válaszolj egyetlen szóval, IGEN vagy NEM ! '\
-        #        'Van-e bármilyen labda ebben a leírásban: ' + \
-        #        text,
-        #    'en': 'Answer with a single word, YES or NO ! '\
-        #        'Are there any balls in this description: ' + \
-        #        text
-        #}
-        #ball = utils.prompt(prompt_text)
-        #print("Ball: ", ball)
-
-        #if ball.upper() in ['YES', 'YES!', 'IGEN', 'IGEN!']:
-        #    text = {
-        #        'hu': "Hurrá, megtaláltam a labdát!",
-        #        'en': "Hooray, I found a ball!"
-        #    }
-        #    xtext = utils.select_text(text, config.get_ui_language(), True)
-        #    wav, d = utils.tts_wav(xtext, config.get_ui_language() + "_hurray_keresd")
-        #    utils.play_wav(wav)
-        #    time.sleep(d)
-
-        #    ball_found = True
-
-        #    prompt_text = {
-        #        'hu': 'Ez egy robotkutyára szerelt első kamera által készített élő nézet. '\
-        #            'Írd le, hogy hol látod a képen a labdát, és hogy néz ki a labda!' \
-        #            ,
-        #        'en': 'This is a liveview capture taken by a front camera of a robot dog.' \
-        #            'Describe where you see the ball on the picture, and how does the ball look like' \
-        #            ,
-        #    }
-        #    text = utils.prompt(prompt_text, images=[img_buffer.tobytes()])
-        #    print(f"Ball place: {text}")
-        #    sock_web.send(pickle.dumps({'action': 'entext', 'text': text}))
-
-        #    if config.needs_translation():
-        #        print("Ask translation" )
-        #        xtext = utils.translate(text, config.get_prompt_language())
-        #        print("Translation: ", xtext)
-        #        sock_web.send(pickle.dumps({'action': 'xtext', 'text': xtext}))
-        #    else:
-        #        xtext = text
-
-        #    print("TTS")
-        #    wav, d = utils.tts_wav(xtext)
-        #    utils.play_wav(wav)
-        #    time.sleep(d)
-
-        #    print("Ball detected, stopping")
-
-        #    # Stop the thread
-        #    thread.stopped = True
-        #    thread.join()
-        #    break
-
-        #prompt_text = {
-        #    'en': 'Answer with a single word, YES or NO ! ' \
-        #        'Based on the following image, are there any near obstacles in front of the viewer? ',
-        #    'hu': 'Válaszolj egyetlen szóval, IGEN vagy NEM ! ' \
-        #        'A következő kép alapján van akadály köyvetlenül a néző előtt? '
-        #}
-        #obstacles = utils.prompt(prompt_text, images=[img_buffer.tobytes()])
-        #print("Obstacles: ", obstacles)
-
+        if ball:
+            # Wait 20 seconds before continuing the process (but update the image)
+            start = time.time()
+            while time.time() - start < 20:
+                take_and_process_frame(model)
+            return
+        
     except Exception as e:
         print('Error:', e)
-        continue
-
-    #print("Execution time: ", time.time() - start_time, " seconds")
-
+        return
+    
     # Check if 'q' is pressed and if so, break the loop
-    stop = False
     if cv2.waitKey(1) & 0xFF == ord('q'):
-        stop = True
-        break
+        return
 
-    # Stop the thread
-    # Temporarily disabled
-    #if not thread.stopped:
-    #    thread.stopped = True
-    #    thread.join()
+    if random.choice([True, False]):
+        turn_left()
+    else:
+        turn_right()
 
-    #if not (obstacles.upper() in ['YES', 'YES!', 'IGEN', 'IGEN!']):
-    #    print("No obstacles in front, moving forward")
-    #    move_forward()
-    #else:
-    #    print("Obstacles detected, turning")
-    #    if random.choice([True, False]):
-    #        print("Turning left")
-    #        turn_left()
-    #    else:
-    #        print("Turning right")
-    #        turn_right()
-    #time.sleep(5)
+
+if __name__ == "__main__":
+    model = YOLO('yolov8m-seg.pt')
+    config.init()
+
+    while True:
+        loop_body(model)
 
 # Release the video capture and close the window
 subscriber.close()
