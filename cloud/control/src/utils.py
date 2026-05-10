@@ -11,6 +11,9 @@ from transformers import pipeline
 import re
 
 import config
+from log_setup import get_logger
+
+logger = get_logger()
 
 language_longname = {
     'en': 'English',
@@ -202,11 +205,14 @@ def select_text(text_dict, language, do_translate = False):
 def dogy_control(command, args = None):
     sock = config.get_control_socket()
     if args:
+        logger.info(f"[MOTOR] cmd={command} args={args}")
         sock.send(pickle.dumps({'name': command, 'args': args}))
     else:
+        logger.info(f"[MOTOR] cmd={command}")
         sock.send(pickle.dumps({'name': command}))
 
 def dogy_look(r, p, y):
+    logger.info(f"[MOTOR] dogy_look(r={r}, p={p}, y={y})")
     dogy_control('attitude', (['r', 'p', 'y'], [r, p, y]))
 
 def dogy_reset():
