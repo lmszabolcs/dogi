@@ -6,6 +6,8 @@ Web servers (using flask):
 5053: (web_keresd.py) Keresd app
 5054: (web_mutasd.py) Mutasd app
 5055: (web_kovesd.py) Kovesd app
+5056: (web_fsm.py)    FSM status page
+5056: (web_fsm.py)    FSM status page
 
 6080: (noVNC)         X desktop for development
 
@@ -23,3 +25,4 @@ Sockets:
 /tmp/video_frames_keresd.ipc: (keresd.py)      Processed frames
 /tmp/video_frames_kovesd.ipc: (kovesd.py)      Processed frames
 /tmp/video_frames_mutasd.ipc: (mutasd.py)      Processed frames
+/tmp/video_frames_fsm.ipc: (state_machine.py)  Processed frames

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Stop and remove existing container.
+docker stop onboard 2>/dev/null || true
+docker rm onboard 2>/dev/null || true
+
 # Builds the onboard docker image (named "onboard") 
 # and runs the container (also named "onboard") with 
 # the specified IP address as an environment variable.
@@ -17,6 +21,7 @@ docker build -t onboard .
 # Run the docker container with specified IP address
 docker run \
     --name onboard \
+    --group-add dialout \
     --device /dev/video0:/dev/video4 \
     --device /dev/serial0:/dev/serial0 \
     --network host \
