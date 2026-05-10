@@ -28,15 +28,22 @@ subscriber_mutasd.setsockopt(zmq.CONFLATE, 1)
 subscriber_mutasd.setsockopt_string(zmq.SUBSCRIBE, '')  # Subscribe to all topics
 subscriber_mutasd.connect("ipc:///tmp/video_frames_mutasd.ipc")  # IPC socket address
 
+subscriber_fsm = zmqcontext.socket(zmq.SUB)
+subscriber_fsm.setsockopt(zmq.CONFLATE, 1)
+subscriber_fsm.setsockopt_string(zmq.SUBSCRIBE, '')
+subscriber_fsm.connect("ipc:///tmp/video_frames_fsm.ipc")
+
 last_frame = None
 last_frame_keresd = None
 last_frame_kovesd = None
 last_frame_mutasd = None
+last_frame_fsm = None
 
 lock = Lock()
 lock_keresd = Lock()
 lock_kovesd = Lock()
 lock_mutasd = Lock()
+lock_fsm = Lock()
 
 app = Flask(__name__)
 CORS(app)
@@ -93,6 +100,19 @@ def gen_mjpeg_mutasd():
             b'Content-Type: image/jpeg\r\n\r\n' + frame.tobytes() + b'\r\n')
         time.sleep(1/25)
 
+def gen_mjpeg_fsm():
+    while True:
+        frame = None
+        with lock_fsm:
+            if last_frame_fsm is not None:
+                frame = last_frame_fsm.copy()
+        if frame is None:
+            frame = np.random.randint(0, 256, (480, 640, 3), dtype=np.uint8)
+            _, frame = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 10])
+        yield (b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n' + frame.tobytes() + b'\r\n')
+        time.sleep(1/25)
+
 def mjpeg_response(generator):
     resp = Response(generator, mimetype='multipart/x-mixed-replace; boundary=frame')
     resp.headers['Access-Control-Allow-Origin'] = '*'
@@ -127,6 +147,10 @@ def mjpeg_kovesd():
 @app.route("/mjpeg_mutasd")
 def mjpeg_mutasd():
     return mjpeg_response(gen_mjpeg_mutasd())
+
+@app.route("/mjpeg_fsm")
+def mjpeg_fsm():
+    return mjpeg_response(gen_mjpeg_fsm())
 
 def get_frames():
     global last_frame
@@ -204,6 +228,25 @@ def get_frames_mutasd():
         except zmq.error.Again:
             pass  # No frame received, continue processing
 
+def get_frames_fsm():
+    global last_frame_fsm
+
+    while True:
+        try:
+            frame_bytes = subscriber_fsm.recv()
+            width = 640
+            height = 480
+            img_array = np.frombuffer(frame_bytes, dtype=np.uint8)
+            img_array = img_array.reshape((height, width, 3))
+
+            img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+            _, frame = cv2.imencode('.jpg', img_array)
+            with lock_fsm:
+                last_frame_fsm = frame.copy()
+
+        except zmq.error.Again:
+            pass
+
 if __name__ == '__main__':
     
     thread1 = Thread(target=get_frames)
@@ -217,6 +260,9 @@ if __name__ == '__main__':
 
     thread4 = Thread(target=get_frames_mutasd)
     thread4.start()
+
+    thread5 = Thread(target=get_frames_fsm)
+    thread5.start()
 
     app.run(host='0.0.0.0', port=5051, threaded=True)
 
