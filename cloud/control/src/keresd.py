@@ -130,6 +130,9 @@ class KeresdLogic:
         self._action_thread.start()
 
     def move_forward(self):
+        if self._stop_event.is_set():
+            utils.dogy_control('stop')
+            return
         logger.info(f"[KERESD.MOVE] move_forward: looking straight")
         utils.dogy_look(0, 0, 0) # Look straight
         if self._wait_or_stop(1):
@@ -142,6 +145,9 @@ class KeresdLogic:
         utils.dogy_control('stop')
 
     def turn_left(self):
+        if self._stop_event.is_set():
+            utils.dogy_control('stop')
+            return
         logger.info(f"[KERESD.MOVE] turn_left: looking straight")
         utils.dogy_look(0, 0, 0) # Look straight
         logger.info(f"[KERESD.MOVE] turn_left: turning left")
@@ -154,6 +160,9 @@ class KeresdLogic:
         utils.dogy_control('stop')
 
     def turn_right(self):
+        if self._stop_event.is_set():
+            utils.dogy_control('stop')
+            return
         logger.info(f"[KERESD.MOVE] turn_right: looking straight")
         utils.dogy_look(0, 0, 0) # Look straight
         logger.info(f"[KERESD.MOVE] turn_right: turning right")

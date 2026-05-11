@@ -48,6 +48,11 @@ class StateMachineController:
         self.keresd_logic = KeresdLogic()
         self.kovesd_logic = KovesdLogic()
 
+        # Performance measurement window
+        self.perf_start_time = time.time()
+        self.perf_frame_count = 0
+        self.perf_inference_time_sum = 0.0
+
     def set_state(self, new_state: State):
         if new_state == self.state:
             return
@@ -62,6 +67,8 @@ class StateMachineController:
         self.state = new_state
 
     def process_frame(self, frame_bytes):
+        inference_start = time.time()
+        
         img_array = np.frombuffer(frame_bytes, dtype=np.uint8)
         img_array = img_array.reshape((FRAME_HEIGHT, FRAME_WIDTH, 3))
 
@@ -73,6 +80,21 @@ class StateMachineController:
             verbose=False,
             persist=True,
         )
+
+        inference_end = time.time()
+        self.perf_inference_time_sum += inference_end - inference_start
+        self.perf_frame_count += 1
+
+        # Periodic performance logging every 5 seconds
+        if time.time() - self.perf_start_time >= 5.0:
+            elapsed = time.time() - self.perf_start_time
+            avg_inf_ms = (self.perf_inference_time_sum / self.perf_frame_count) * 1000 if self.perf_frame_count else 0.0
+            fps = self.perf_frame_count / elapsed if elapsed > 0 else 0.0
+            logger.info(f"[PERF] YOLO latency: {avg_inf_ms:.2f} ms | FPS: {fps:.2f} | window: 5s")
+            
+            self.perf_start_time = time.time()
+            self.perf_frame_count = 0
+            self.perf_inference_time_sum = 0.0
 
         annotated_frame = results[0].plot()
         annotated_frame_bytes = annotated_frame.tobytes()
@@ -111,6 +133,7 @@ class StateMachineController:
 
     def tick(self):
         try:
+            tick_start_time = time.time()
             try:
                 frame_bytes = self.subscriber.recv()
             except zmq.Again:

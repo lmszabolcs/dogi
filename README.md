@@ -63,6 +63,7 @@ Log prefixes (short):
 - **[KERESD]** — detection / search logic
 - **[KOVESD]** — follow logic
 - **[MOTOR]** — motor commands (start/stop/turn)
+- **[PERF]** — YOLO/video performance and latency
 
 ## Camera-less test stream
 
